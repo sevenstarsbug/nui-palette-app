@@ -7,13 +7,23 @@ export async function POST(req) {
   try {
     const { image, mediaType, mood, brands } = await req.json();
 
+    // Base64文字列から純粋なデータ部分とMIMEタイプを抽出
+    let base64Data = image;
+    let mimeType = mediaType || 'image/jpeg';
+
+    if (image && image.includes(',')) {
+      const parts = image.split(',');
+      mimeType = parts[0].match(/:(.*?);/)?.[1] || mimeType;
+      base64Data = parts[1];
+    }
+
     const brandInstruction = brands
       ? `ユーザーが希望するブランド: ${brands}。このブランドを優先して番号を出してください。該当ブランドの型番のみでよいです。`
       : `DMC、コスモ(COSMO)、オリンパス(OLYMPUS)の3ブランドすべての型番を提案してください。`;
 
     const systemPrompt = `あなたはぬいぐるみ服・刺繍の配色デザインアドバイザーです。
-アップロードされた線画/未着色のぬいまたは服のデザイン画像を見て、配色案を3パターン提案してください。
-各パターンについて、画像内の主要なパーツ(例: 頭、耳、胴、手足、服の各部位など、実際に見える要素に応じて命名)ごとに配色と、その色に近い刺繍糸の型番を提案してください。
+アップロードされた線画/未着色のぬいまたは服のデザイン画像（手描きスケッチ含む）を見て、配色案を3パターン提案してください。
+各パターンについて、画像内の主要なパーツ(例: 頭、耳、髪、目、服の各部位など)ごとに配色と、その色に近い刺繍糸の型番を提案してください。
 ${brandInstruction}
 ${mood ? `ユーザー希望のイメージ: ${mood}` : ''}
 
@@ -42,8 +52,8 @@ ${mood ? `ユーザー希望のイメージ: ${mood}` : ''}
 
     const imagePart = {
       inlineData: {
-        data: image,
-        mimeType: mediaType || 'image/png',
+        data: base64Data,
+        mimeType: mimeType,
       },
     };
 
