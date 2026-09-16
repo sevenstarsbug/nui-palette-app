@@ -1,13 +1,12 @@
 import { NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 export async function POST(req) {
   try {
     const { image, mediaType, mood, brands } = await req.json();
 
-    // Base64文字列から純粋なデータ部分とMIMEタイプを抽出
     let base64Data = image;
     let mimeType = mediaType || 'image/jpeg';
 
@@ -45,21 +44,16 @@ ${mood ? `ユーザー希望のイメージ: ${mood}` : ''}
   ]
 }`;
 
-    const model = genAI.getGenerativeModel({
+    const response = await ai.models.generateContent({
       model: 'gemini-3.6-flash',
-      generationConfig: { responseMimeType: 'application/json' },
+      contents: [
+        { text: systemPrompt },
+        { inlineData: { data: base64Data, mimeType: mimeType } },
+      ],
+      config: { responseMimeType: 'application/json' },
     });
 
-    const imagePart = {
-      inlineData: {
-        data: base64Data,
-        mimeType: mimeType,
-      },
-    };
-
-    const result = await model.generateContent([systemPrompt, imagePart]);
-    const responseText = result.response.text();
-    const parsed = JSON.parse(responseText);
+    const parsed = JSON.parse(response.text);
 
     return NextResponse.json(parsed);
   } catch (error) {
