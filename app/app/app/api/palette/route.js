@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 export async function POST(req) {
   try {
@@ -28,38 +28,29 @@ ${mood ? `ユーザー希望のイメージ: ${mood}` : ''}
         {
           "part": "パーツ名",
           "hex": "#RRGGBB",
-          "threads": "ブランド名 番号(色名), ブランド名 番号(色name) の形式でカンマ区切り"
+          "threads": "ブランド名 番号(色名), ブランド名 番号(色名) の形式でカンマ区切り"
         }
       ]
     }
   ]
 }`;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: [
-        {
-          role: 'user',
-          parts: [
-            {
-              inlineData: {
-                mimeType: mediaType || 'image/png',
-                data: image,
-              },
-            },
-            {
-              text: systemPrompt,
-            },
-          ],
-        },
-      ],
-      config: {
-        responseMimeType: 'application/json',
-      },
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-1.5-flash',
+      generationConfig: { responseMimeType: 'application/json' },
     });
 
-    const text = response.text.trim();
-    const parsed = JSON.parse(text);
+    const imagePart = {
+      inlineData: {
+        data: image,
+        mimeType: mediaType || 'image/png',
+      },
+    };
+
+    const result = await model.generateContent([systemPrompt, imagePart]);
+    const responseText = result.response.text();
+    const parsed = JSON.parse(responseText);
+
     return NextResponse.json(parsed);
   } catch (error) {
     console.error('API Error:', error);
